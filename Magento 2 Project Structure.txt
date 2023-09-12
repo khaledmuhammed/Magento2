@@ -1,0 +1,19 @@
+-Root file is in 'pub/index.php'
+
+-'composer.json' is the file to manage all project dependencies
+
+-'.htaccess.sample' and 'nginx.conf.sample' for all server configrations and deploying stuff
+
+- 'php bin/magento "command" ' for magento CLI
+
+-'app/code' this folder for all magento extintions
+-'app/design' this folder for theme development
+
+-'var/log/debug.log' logging the actions related to your magento application
+
+-Module Enable: 'php bin/magento module:enable "extention_name" '
+
+-Excute db_schema.xml file to create module database 'php bin/magento setup:upgrade --dry-run=1'
+and "--dry-run=1" to see excution in "var/log/dry-run-installation.log" then you use 
+'php bin/magento setup:upgrade' to actully create the table
+
