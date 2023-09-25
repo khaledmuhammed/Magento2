@@ -421,7 +421,10 @@ class PoolBuilder
 
         // if propagateUpdate is false we are loading a fixed or locked package, root aliases do not apply as they are
         // manually loaded as separate packages in this case
-        if ($propagateUpdate && isset($this->rootAliases[$name][$package->getVersion()])) {
+        //
+        // packages in pathRepoUnlocked however need to also load root aliases, they have propagateUpdate set to
+        // false because their deps should not be unlocked, but that is irrelevant for root aliases
+        if (($propagateUpdate || isset($this->pathRepoUnlocked[$package->getName()])) && isset($this->rootAliases[$name][$package->getVersion()])) {
             $alias = $this->rootAliases[$name][$package->getVersion()];
             if ($package instanceof AliasPackage) {
                 $basePackage = $package->getAliasOf();
@@ -669,6 +672,10 @@ class PoolBuilder
 
     private function markPackageNameForLoadingIfRequired(Request $request, string $name): void
     {
+        if ($this->isRootRequire($request, $name)) {
+            $this->markPackageNameForLoading($request, $name, $request->getRequires()[$name]);
+        }
+
         foreach ($this->packages as $package) {
             foreach ($package->getRequires() as $link) {
                 if ($name === $link->getTarget()) {

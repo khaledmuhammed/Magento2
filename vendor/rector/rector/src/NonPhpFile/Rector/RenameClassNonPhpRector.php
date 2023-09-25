@@ -3,17 +3,21 @@
 declare (strict_types=1);
 namespace Rector\Core\NonPhpFile\Rector;
 
-use RectorPrefix202304\Nette\Utils\Strings;
+use RectorPrefix202308\Nette\Utils\Strings;
 use Rector\Core\Configuration\RenamedClassesDataCollector;
 use Rector\Core\Contract\Rector\ConfigurableRectorInterface;
 use Rector\Core\Contract\Rector\NonPhpRectorInterface;
-use Rector\PostRector\Contract\Rector\ComplementaryRectorInterface;
 use Symplify\RuleDocGenerator\Contract\ConfigurableRuleInterface;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\ConfiguredCodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
-use RectorPrefix202304\Webmozart\Assert\Assert;
-final class RenameClassNonPhpRector implements NonPhpRectorInterface, ConfigurableRuleInterface, ConfigurableRectorInterface, ComplementaryRectorInterface
+use RectorPrefix202308\Webmozart\Assert\Assert;
+final class RenameClassNonPhpRector implements NonPhpRectorInterface, ConfigurableRuleInterface, ConfigurableRectorInterface
 {
+    /**
+     * @readonly
+     * @var \Rector\Core\Configuration\RenamedClassesDataCollector
+     */
+    private $renamedClassesDataCollector;
     /**
      * @see https://regex101.com/r/HKUFJD/7
      * for "?<!" @see https://stackoverflow.com/a/3735908/1348344
@@ -30,11 +34,6 @@ final class RenameClassNonPhpRector implements NonPhpRectorInterface, Configurab
      * @var array<string, string>
      */
     private $renameClasses = [];
-    /**
-     * @readonly
-     * @var \Rector\Core\Configuration\RenamedClassesDataCollector
-     */
-    private $renamedClassesDataCollector;
     public function __construct(RenamedClassesDataCollector $renamedClassesDataCollector)
     {
         $this->renamedClassesDataCollector = $renamedClassesDataCollector;
@@ -105,10 +104,8 @@ CODE_SAMPLE
      */
     private function getRenameClasses() : array
     {
-        $item0Unpacked = $this->renameClasses;
-        $item1Unpacked = $this->renamedClassesDataCollector->getOldToNewClasses();
         /** @var array<string, string> $renameClasses */
-        $renameClasses = \array_merge($item0Unpacked, $item1Unpacked);
+        $renameClasses = \array_merge($this->renameClasses, $this->renamedClassesDataCollector->getOldToNewClasses());
         return $renameClasses;
     }
     private function createOldClassRegex(string $oldClass) : string

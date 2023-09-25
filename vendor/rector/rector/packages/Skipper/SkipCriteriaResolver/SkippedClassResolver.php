@@ -5,26 +5,20 @@ namespace Rector\Skipper\SkipCriteriaResolver;
 
 use PHPStan\Reflection\ReflectionProvider;
 use Rector\Core\Configuration\Option;
-use Rector\Core\Configuration\Parameter\ParameterProvider;
+use Rector\Core\Configuration\Parameter\SimpleParameterProvider;
 final class SkippedClassResolver
 {
-    /**
-     * @var array<string, string[]|null>
-     */
-    private $skippedClasses = [];
-    /**
-     * @readonly
-     * @var \Rector\Core\Configuration\Parameter\ParameterProvider
-     */
-    private $parameterProvider;
     /**
      * @readonly
      * @var \PHPStan\Reflection\ReflectionProvider
      */
     private $reflectionProvider;
-    public function __construct(ParameterProvider $parameterProvider, ReflectionProvider $reflectionProvider)
+    /**
+     * @var array<string, string[]|null>
+     */
+    private $skippedClasses = [];
+    public function __construct(ReflectionProvider $reflectionProvider)
     {
-        $this->parameterProvider = $parameterProvider;
         $this->reflectionProvider = $reflectionProvider;
     }
     /**
@@ -32,10 +26,11 @@ final class SkippedClassResolver
      */
     public function resolve() : array
     {
-        if ($this->skippedClasses !== []) {
+        // skip cache in tests
+        if ($this->skippedClasses !== [] && !\defined('PHPUNIT_COMPOSER_INSTALL')) {
             return $this->skippedClasses;
         }
-        $skip = $this->parameterProvider->provideArrayParameter(Option::SKIP);
+        $skip = SimpleParameterProvider::provideArrayParameter(Option::SKIP);
         foreach ($skip as $key => $value) {
             // e.g. [SomeClass::class] → shift values to [SomeClass::class => null]
             if (\is_int($key)) {

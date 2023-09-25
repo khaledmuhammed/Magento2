@@ -4,7 +4,7 @@ declare (strict_types=1);
 namespace Rector\Skipper\SkipCriteriaResolver;
 
 use Rector\Core\Configuration\Option;
-use Rector\Core\Configuration\Parameter\ParameterProvider;
+use Rector\Core\Configuration\Parameter\SimpleParameterProvider;
 use Rector\Core\FileSystem\FilePathHelper;
 /**
  * @see \Rector\Tests\Skipper\SkipCriteriaResolver\SkippedPathsResolver\SkippedPathsResolverTest
@@ -12,22 +12,16 @@ use Rector\Core\FileSystem\FilePathHelper;
 final class SkippedPathsResolver
 {
     /**
-     * @var string[]
-     */
-    private $skippedPaths = [];
-    /**
-     * @readonly
-     * @var \Rector\Core\Configuration\Parameter\ParameterProvider
-     */
-    private $parameterProvider;
-    /**
      * @readonly
      * @var \Rector\Core\FileSystem\FilePathHelper
      */
     private $filePathHelper;
-    public function __construct(ParameterProvider $parameterProvider, FilePathHelper $filePathHelper)
+    /**
+     * @var string[]
+     */
+    private $skippedPaths = [];
+    public function __construct(FilePathHelper $filePathHelper)
     {
-        $this->parameterProvider = $parameterProvider;
         $this->filePathHelper = $filePathHelper;
     }
     /**
@@ -35,19 +29,20 @@ final class SkippedPathsResolver
      */
     public function resolve() : array
     {
-        if ($this->skippedPaths !== []) {
+        // disable cache in tests
+        if ($this->skippedPaths !== [] && !\defined('PHPUNIT_COMPOSER_INSTALL')) {
             return $this->skippedPaths;
         }
-        $skip = $this->parameterProvider->provideArrayParameter(Option::SKIP);
+        $skip = SimpleParameterProvider::provideArrayParameter(Option::SKIP);
         foreach ($skip as $key => $value) {
             if (!\is_int($key)) {
                 continue;
             }
-            if (\file_exists($value)) {
+            if (\strpos((string) $value, '*') !== \false) {
                 $this->skippedPaths[] = $this->filePathHelper->normalizePathAndSchema($value);
                 continue;
             }
-            if (\strpos((string) $value, '*') !== \false) {
+            if (\file_exists($value)) {
                 $this->skippedPaths[] = $this->filePathHelper->normalizePathAndSchema($value);
             }
         }

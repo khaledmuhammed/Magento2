@@ -11,20 +11,21 @@ use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Stmt;
 use PhpParser\Node\Stmt\Expression;
 use PhpParser\Node\Stmt\Return_;
+use PHPStan\Analyser\Scope;
+use PHPStan\Reflection\FunctionReflection;
 use PHPStan\Type\MixedType;
-use Rector\CodeQuality\NodeAnalyzer\ReturnAnalyzer;
 use Rector\Core\Contract\PhpParser\Node\StmtsAwareInterface;
 use Rector\Core\NodeAnalyzer\CallAnalyzer;
 use Rector\Core\NodeAnalyzer\VariableAnalyzer;
 use Rector\Core\PhpParser\Node\AssignAndBinaryMap;
-use Rector\Core\Rector\AbstractRector;
+use Rector\Core\Rector\AbstractScopeAwareRector;
+use Rector\NodeTypeResolver\Node\AttributeKey;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 /**
- * @see Based on https://github.com/slevomat/coding-standard/blob/master/SlevomatCodingStandard/Sniffs/Variables/UselessVariableSniff.php
  * @see \Rector\Tests\CodeQuality\Rector\FunctionLike\SimplifyUselessVariableRector\SimplifyUselessVariableRectorTest
  */
-final class SimplifyUselessVariableRector extends AbstractRector
+final class SimplifyUselessVariableRector extends AbstractScopeAwareRector
 {
     /**
      * @readonly
@@ -41,17 +42,11 @@ final class SimplifyUselessVariableRector extends AbstractRector
      * @var \Rector\Core\NodeAnalyzer\CallAnalyzer
      */
     private $callAnalyzer;
-    /**
-     * @readonly
-     * @var \Rector\CodeQuality\NodeAnalyzer\ReturnAnalyzer
-     */
-    private $returnAnalyzer;
-    public function __construct(AssignAndBinaryMap $assignAndBinaryMap, VariableAnalyzer $variableAnalyzer, CallAnalyzer $callAnalyzer, ReturnAnalyzer $returnAnalyzer)
+    public function __construct(AssignAndBinaryMap $assignAndBinaryMap, VariableAnalyzer $variableAnalyzer, CallAnalyzer $callAnalyzer)
     {
         $this->assignAndBinaryMap = $assignAndBinaryMap;
         $this->variableAnalyzer = $variableAnalyzer;
         $this->callAnalyzer = $callAnalyzer;
-        $this->returnAnalyzer = $returnAnalyzer;
     }
     public function getRuleDefinition() : RuleDefinition
     {
@@ -78,13 +73,14 @@ CODE_SAMPLE
     /**
      * @param StmtsAwareInterface $node
      */
-    public function refactor(Node $node) : ?Node
+    public function refactorWithScope(Node $node, Scope $scope) : ?Node
     {
         $stmts = $node->stmts;
         if ($stmts === null) {
             return null;
         }
         foreach ($stmts as $key => $stmt) {
+            // has previous node?
             if (!isset($stmts[$key - 1])) {
                 continue;
             }
@@ -92,16 +88,16 @@ CODE_SAMPLE
                 continue;
             }
             $previousStmt = $stmts[$key - 1];
-            if ($this->shouldSkipStmt($stmt, $previousStmt)) {
+            if ($this->shouldSkipStmt($stmt, $previousStmt, $scope)) {
+                return null;
+            }
+            if ($this->hasSomeComment($previousStmt)) {
                 return null;
             }
             if ($this->isReturnWithVarAnnotation($stmt)) {
                 return null;
             }
-            /**
-             * @var Expression $previousStmt
-             * @var Assign|AssignOp $assign
-             */
+            /** @var Expression<Assign|AssignOp> $previousStmt */
             $assign = $previousStmt->expr;
             return $this->processSimplifyUselessVariable($node, $stmt, $assign, $key);
         }
@@ -124,19 +120,18 @@ CODE_SAMPLE
         unset($stmtsAware->stmts[$key - 1]);
         return $stmtsAware;
     }
-    private function shouldSkipStmt(Return_ $return, Stmt $previousStmt) : bool
+    private function shouldSkipStmt(Return_ $return, Stmt $previousStmt, Scope $scope) : bool
     {
-        if ($this->hasSomeComment($previousStmt)) {
-            return \true;
-        }
         if (!$return->expr instanceof Variable) {
             return \true;
         }
-        if ($this->returnAnalyzer->hasByRefReturn($return)) {
+        $functionReflection = $scope->getFunction();
+        if ($functionReflection instanceof FunctionReflection && $functionReflection->returnsByReference()->yes()) {
             return \true;
         }
-        /** @var Variable $variable */
-        $variable = $return->expr;
+        if ($return->getAttribute(AttributeKey::IS_BYREF_RETURN) === \true) {
+            return \true;
+        }
         if (!$previousStmt instanceof Expression) {
             return \true;
         }
@@ -145,6 +140,7 @@ CODE_SAMPLE
         if (!$previousNode instanceof AssignOp && !$previousNode instanceof Assign) {
             return \true;
         }
+        $variable = $return->expr;
         // is the same variable
         if (!$this->nodeComparator->areNodesEqual($previousNode->var, $variable)) {
             return \true;
@@ -152,7 +148,9 @@ CODE_SAMPLE
         if ($this->variableAnalyzer->isStaticOrGlobal($variable)) {
             return \true;
         }
-        if ($this->callAnalyzer->isNewInstance($previousNode->var)) {
+        /** @var Variable $previousVar */
+        $previousVar = $previousNode->var;
+        if ($this->callAnalyzer->isNewInstance($previousVar)) {
             return \true;
         }
         return $this->variableAnalyzer->isUsedByReference($variable);

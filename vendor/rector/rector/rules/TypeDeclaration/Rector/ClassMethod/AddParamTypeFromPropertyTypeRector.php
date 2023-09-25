@@ -17,6 +17,7 @@ use Rector\Core\ValueObject\PhpVersionFeature;
 use Rector\NodeTypeResolver\PHPStan\Type\TypeFactory;
 use Rector\PhpDocParser\NodeTraverser\SimpleCallableNodeTraverser;
 use Rector\PHPStanStaticTypeMapper\Enum\TypeKind;
+use Rector\VendorLocker\ParentClassMethodTypeOverrideGuard;
 use Rector\VersionBonding\Contract\MinPhpVersionInterface;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -25,10 +26,6 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
  */
 final class AddParamTypeFromPropertyTypeRector extends AbstractRector implements MinPhpVersionInterface
 {
-    /**
-     * @var string
-     */
-    private const ERROR_MESSAGE = 'Adds param type declaration based on property type the value is assigned to PHPUnit provider return type declaration';
     /**
      * @readonly
      * @var \Rector\Core\NodeAnalyzer\PropertyFetchAnalyzer
@@ -44,11 +41,21 @@ final class AddParamTypeFromPropertyTypeRector extends AbstractRector implements
      * @var \Rector\NodeTypeResolver\PHPStan\Type\TypeFactory
      */
     private $typeFactory;
-    public function __construct(PropertyFetchAnalyzer $propertyFetchAnalyzer, SimpleCallableNodeTraverser $simpleCallableNodeTraverser, TypeFactory $typeFactory)
+    /**
+     * @readonly
+     * @var \Rector\VendorLocker\ParentClassMethodTypeOverrideGuard
+     */
+    private $parentClassMethodTypeOverrideGuard;
+    /**
+     * @var string
+     */
+    private const ERROR_MESSAGE = 'Adds param type declaration based on property type the value is assigned to PHPUnit provider return type declaration';
+    public function __construct(PropertyFetchAnalyzer $propertyFetchAnalyzer, SimpleCallableNodeTraverser $simpleCallableNodeTraverser, TypeFactory $typeFactory, ParentClassMethodTypeOverrideGuard $parentClassMethodTypeOverrideGuard)
     {
         $this->propertyFetchAnalyzer = $propertyFetchAnalyzer;
         $this->simpleCallableNodeTraverser = $simpleCallableNodeTraverser;
         $this->typeFactory = $typeFactory;
+        $this->parentClassMethodTypeOverrideGuard = $parentClassMethodTypeOverrideGuard;
     }
     public function getRuleDefinition() : RuleDefinition
     {
@@ -113,6 +120,9 @@ CODE_SAMPLE
             $paramType = $this->staticTypeMapper->mapPHPStanTypeToPhpParserNode($possibleParamType, TypeKind::PARAM);
             if (!$paramType instanceof Node) {
                 continue;
+            }
+            if ($this->parentClassMethodTypeOverrideGuard->hasParentClassMethod($node)) {
+                return null;
             }
             $param->type = $paramType;
             $hasChanged = \true;

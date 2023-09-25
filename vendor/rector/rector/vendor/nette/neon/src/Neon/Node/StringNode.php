@@ -5,18 +5,18 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 declare (strict_types=1);
-namespace RectorPrefix202304\Nette\Neon\Node;
+namespace RectorPrefix202308\Nette\Neon\Node;
 
-use RectorPrefix202304\Nette;
-use RectorPrefix202304\Nette\Neon\Node;
+use RectorPrefix202308\Nette;
+use RectorPrefix202308\Nette\Neon\Node;
 /** @internal */
 final class StringNode extends Node
 {
-    private const EscapeSequences = ['t' => "\t", 'n' => "\n", 'r' => "\r", 'f' => "\f", 'b' => "\x08", '"' => '"', '\\' => '\\', '/' => '/', '_' => " "];
     /**
      * @var string
      */
     public $value;
+    private const EscapeSequences = ['t' => "\t", 'n' => "\n", 'r' => "\r", 'f' => "\f", 'b' => "\x08", '"' => '"', '\\' => '\\', '/' => '/', '_' => " "];
     public function __construct(string $value)
     {
         $this->value = $value;

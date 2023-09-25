@@ -5,7 +5,6 @@ namespace Rector\PHPStanStaticTypeMapper\TypeMapper;
 
 use PhpParser\Node;
 use PhpParser\Node\Identifier;
-use PHPStan\PhpDocParser\Ast\Type\IdentifierTypeNode;
 use PHPStan\PhpDocParser\Ast\Type\TypeNode;
 use PHPStan\Type\NullType;
 use PHPStan\Type\Type;
@@ -26,9 +25,9 @@ final class NullTypeMapper implements TypeMapperInterface
     /**
      * @param NullType $type
      */
-    public function mapToPHPStanPhpDocTypeNode(Type $type, string $typeKind) : TypeNode
+    public function mapToPHPStanPhpDocTypeNode(Type $type) : TypeNode
     {
-        return new IdentifierTypeNode('null');
+        return $type->toPhpDocNode();
     }
     /**
      * @param TypeKind::* $typeKind
